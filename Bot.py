@@ -10,15 +10,17 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "LTB Store Bot is Online Securely!"
+    return "LTB Store Bot with Admin Upload is Online!"
 
 def run_http_server():
     app.run(host='0.0.0.0', port=8080)
 
-# 🔐 تعديل سري وآمن: قراءة التوكن من بيئة السيرفر المخفية وليس كتابته علناً
+# قراءة التوكن المشفر من إعدادات بيئة Render
 TOKEN = os.getenv("DISCORD_TOKEN")
-
 ACCOUNTS_DIR = "./" 
+
+# 🛠️ اسم الروم المخفية المخصصة للإدارة لإضافة الحسابات (يمكنك تغيير الاسم كما تحب)
+ADMIN_UPLOAD_CHANNEL_NAME = "إضافة-الحسابات"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -64,7 +66,7 @@ class MainStoreView(View):
             description=(
                 f"أهلاً بك {member.mention} في قسم المعاينة الخاص بـ **LTB Store**.\n\n"
                 "ℹ️ **طريقة الاستعراض الفوري:**\n"
-                "كل ما عليك فعله الآن هو **كتابة رقم الحساب** الذي ترغب في استعراضه هنا في الشات مباشرة (مثال: `23` أو `54`) وسيقوم النظام التلقائي برفع صوره ومواصفاته لك فوراً.\n\n"
+                "كل ما عليك فعله الآن هو **كتابة رقم الحساب** الذي ترغب في استعراضه هنا في الشات مباشرة (مثال: `23` أو `54`) وسيقوم النظام التلقائي برفه صوره ومواصفاته لك فوراً.\n\n"
                 "⚠️ **قوانين وشروط التذكرة (عدم الإزعاج):**\n"
                 "• يُمنع كتابة أرقام عشوائية متتالية بشكل سريع لتجنب حظر البوت الفوري.\n"
                 "• يُرجى كتابة الرقم المُراد معاينته فقط في الرسالة دون أي نصوص جانبية.\n"
@@ -79,6 +81,46 @@ class MainStoreView(View):
 @bot.event
 async def on_message(message):
     if message.author.bot: return
+
+    # 📥 أولاً: نظام إضافة الحسابات الذكي من الروم المخفية
+    if ADMIN_UPLOAD_CHANNEL_NAME in message.channel.name:
+        folder_name = message.content.strip()
+        
+        # التأكد من أن المشرف كتب رقم أو اسم للمجلد وأنه أرسل صوراً
+        if not folder_name:
+            return
+            
+        if not message.attachments:
+            await message.channel.send("⚠️ تنبيه: يرجى كتابة رقم الحساب وإرفاق الصور معه في نفس الرسالة.")
+            return
+
+        status_msg = await message.channel.send(f"🔄 جاري إنشاء المجلد (**{folder_name}**) وتحميل الصور بيئياً...")
+        
+        # إنشاء المجلد إذا لم يكن موجوداً
+        target_dir = os.path.join(ACCOUNTS_DIR, folder_name)
+        os.makedirs(target_dir, exist_ok=True)
+
+        success_count = 0
+        valid_extensions = ('.png', '.jpg', '.jpeg', '.webp')
+        
+        for index, attachment in enumerate(message.attachments):
+            if attachment.filename.lower().endswith(valid_extensions):
+                # تسمية الصور بشكل منظم وتفادي المشاكل الإملائية
+                ext = os.path.splitext(attachment.filename)[1]
+                file_path = os.path.join(target_dir, f"image_{index+1}{ext}")
+                try:
+                    await attachment.save(file_path)
+                    success_count += 1
+                except Exception as e:
+                    await message.channel.send(f"❌ فشل حفظ الصورة {attachment.filename}: {e}")
+
+        if success_count > 0:
+            await status_msg.edit(content=f"✅ تم بنجاح إنشاء الحساب رقم (**{folder_name}**) وحفظ عدد ({success_count}) صور داخله بنجاح! جاهز للمعاينة الفورية الآن.")
+        else:
+            await status_msg.edit(content="❌ فشل تحميل الصور. تأكد من أن الملفات المرفقة هي صور فقط.")
+        return
+
+    # 🔍 ثانياً: نظام جلب ومعاينة الحسابات داخل التذاكر للزبائن
     if "تذكرة-" in message.channel.name or "🔒-مغلقة-" in message.channel.name:
         search_target = message.content.strip()
         if search_target.isdigit():
@@ -124,12 +166,13 @@ async def on_message(message):
                 await message.delete()
                 await waiting_msg.delete()
             except: pass
+
     await bot.process_commands(message)
 
 @bot.event
 async def on_ready():
     print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"⚡ البوت متصل الآن بنظام التشفير الآمن والسرية الكاملة!")
+    print(f"⚡ البوت متصل ومحدث بنظام الإضافة السحابية الفورية!")
     print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     bot.add_view(MainStoreView())
     bot.add_view(TicketControlView())
@@ -149,4 +192,4 @@ if __name__ == "__main__":
     if TOKEN:
         bot.run(TOKEN)
     else:
-        print("❌ خطأ فادح: لم يتم العثور على التوكن في إعدادات Render البيئية!")
+        print("❌ خطأ: لم يتم العثور على التوكن!")
