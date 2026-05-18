@@ -10,7 +10,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "LTB Store Bot with Admin Upload is Online!"
+    return "LTB Store Bot with Secure ID Upload is Online!"
 
 def run_http_server():
     app.run(host='0.0.0.0', port=8080)
@@ -19,8 +19,8 @@ def run_http_server():
 TOKEN = os.getenv("DISCORD_TOKEN")
 ACCOUNTS_DIR = "./" 
 
-# 🛠️ اسم الروم المخفية المخصصة للإدارة لإضافة الحسابات (يمكنك تغيير الاسم كما تحب)
-ADMIN_UPLOAD_CHANNEL_NAME = "إضافة-الحسابات"
+# 🔒 الاعتماد على الأيدي الثابت للروم لمنع أي تداخل أو أخطاء
+ADMIN_UPLOAD_CHANNEL_ID = 1505753282755170324
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -66,7 +66,7 @@ class MainStoreView(View):
             description=(
                 f"أهلاً بك {member.mention} في قسم المعاينة الخاص بـ **LTB Store**.\n\n"
                 "ℹ️ **طريقة الاستعراض الفوري:**\n"
-                "كل ما عليك فعله الآن هو **كتابة رقم الحساب** الذي ترغب في استعراضه هنا في الشات مباشرة (مثال: `23` أو `54`) وسيقوم النظام التلقائي برفه صوره ومواصفاته لك فوراً.\n\n"
+                "كل ما عليك فعله الآن هو **كتابة رقم الحساب** الذي ترغب في استعراضه هنا في الشات مباشرة (مثال: `23` أو `54`) وسيقوم النظام التلقائي برفع صوره ومواصفاته لك فوراً.\n\n"
                 "⚠️ **قوانين وشروط التذكرة (عدم الإزعاج):**\n"
                 "• يُمنع كتابة أرقام عشوائية متتالية بشكل سريع لتجنب حظر البوت الفوري.\n"
                 "• يُرجى كتابة الرقم المُراد معاينته فقط في الرسالة دون أي نصوص جانبية.\n"
@@ -82,11 +82,10 @@ class MainStoreView(View):
 async def on_message(message):
     if message.author.bot: return
 
-    # 📥 أولاً: نظام إضافة الحسابات الذكي من الروم المخفية
-    if ADMIN_UPLOAD_CHANNEL_NAME in message.channel.name:
+    # 📥 أولاً: الفحص عن طريق الـ ID الصارم للروم المخصصة للإدارة
+    if message.channel.id == ADMIN_UPLOAD_CHANNEL_ID:
         folder_name = message.content.strip()
         
-        # التأكد من أن المشرف كتب رقم أو اسم للمجلد وأنه أرسل صوراً
         if not folder_name:
             return
             
@@ -94,9 +93,8 @@ async def on_message(message):
             await message.channel.send("⚠️ تنبيه: يرجى كتابة رقم الحساب وإرفاق الصور معه في نفس الرسالة.")
             return
 
-        status_msg = await message.channel.send(f"🔄 جاري إنشاء المجلد (**{folder_name}**) وتحميل الصور بيئياً...")
+        status_msg = await message.channel.send(f"🔄 جاري إنشاء المجلد (**{folder_name}**) وتحميل الصور...")
         
-        # إنشاء المجلد إذا لم يكن موجوداً
         target_dir = os.path.join(ACCOUNTS_DIR, folder_name)
         os.makedirs(target_dir, exist_ok=True)
 
@@ -105,7 +103,6 @@ async def on_message(message):
         
         for index, attachment in enumerate(message.attachments):
             if attachment.filename.lower().endswith(valid_extensions):
-                # تسمية الصور بشكل منظم وتفادي المشاكل الإملائية
                 ext = os.path.splitext(attachment.filename)[1]
                 file_path = os.path.join(target_dir, f"image_{index+1}{ext}")
                 try:
@@ -115,7 +112,7 @@ async def on_message(message):
                     await message.channel.send(f"❌ فشل حفظ الصورة {attachment.filename}: {e}")
 
         if success_count > 0:
-            await status_msg.edit(content=f"✅ تم بنجاح إنشاء الحساب رقم (**{folder_name}**) وحفظ عدد ({success_count}) صور داخله بنجاح! جاهز للمعاينة الفورية الآن.")
+            await status_msg.edit(content=f"✅ تم بنجاح إنشاء الحساب رقم (**{folder_name}**) وحفظ عدد ({success_count}) صور داخله! جاهز للمعاينة الفورية الآن.")
         else:
             await status_msg.edit(content="❌ فشل تحميل الصور. تأكد من أن الملفات المرفقة هي صور فقط.")
         return
@@ -172,7 +169,7 @@ async def on_message(message):
 @bot.event
 async def on_ready():
     print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print(f"⚡ البوت متصل ومحدث بنظام الإضافة السحابية الفورية!")
+    print(f"⚡ البوت متصل ومربوط بالـ ID الثابت للروم المخفية!")
     print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     bot.add_view(MainStoreView())
     bot.add_view(TicketControlView())
