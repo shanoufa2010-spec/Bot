@@ -10,12 +10,14 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "LTB Store Bot is Online!"
+    return "LTB Store Bot is Online Securely!"
 
 def run_http_server():
     app.run(host='0.0.0.0', port=8080)
 
-TOKEN = "MTUwNTc2MDIxOTI0NTA1MjAyNg.GEkyrL.3XvKIY8COwkHiatFANb8NGOiTxM7hyiTtcDS7s"
+# 🔐 تعديل سري وآمن: قراءة التوكن من بيئة السيرفر المخفية وليس كتابته علناً
+TOKEN = os.getenv("DISCORD_TOKEN")
+
 ACCOUNTS_DIR = "./" 
 
 intents = discord.Intents.default()
@@ -126,7 +128,9 @@ async def on_message(message):
 
 @bot.event
 async def on_ready():
-    print(f"⚡ البوت جاهز ومستعد للعمل 24/7.")
+    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"⚡ البوت متصل الآن بنظام التشفير الآمن والسرية الكاملة!")
+    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     bot.add_view(MainStoreView())
     bot.add_view(TicketControlView())
 
@@ -142,4 +146,7 @@ async def setup(ctx):
 
 if __name__ == "__main__":
     Thread(target=run_http_server).start()
-    bot.run(TOKEN)
+    if TOKEN:
+        bot.run(TOKEN)
+    else:
+        print("❌ خطأ فادح: لم يتم العثور على التوكن في إعدادات Render البيئية!")
