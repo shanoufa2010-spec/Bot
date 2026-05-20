@@ -23,7 +23,7 @@ BOT_CONFIG = {
     # تخصيص رومات السيرفر (الأيدي)
     "log_channel_id": "1506320607032381581",      # روم #shop-log
     "welcome_channel_id": "1505753282755170324",  # روم الترحيب
-    "reviews_channel_id": "1505753282755170324",  # روم الآراء والتقييمات
+    "reviews_channel_id": "1505753282755170324",  # روم التقييمات والآراء
     
     # حالات تشغيل الميزات (On / Off)
     "enable_welcome": "on",
@@ -119,7 +119,7 @@ DASHBOARD_HTML = """
         
         <form method="POST" action="/save">
             <div class="card">
-                <h3>🪙 إعدادات بوابة الدفع (Cryptocurrency)</h3>
+                <h3>🪙 بوابة الدفع المعتمدة (Cryptocurrency)</h3>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label>محفظة USDT (شبكة BNB Smart Chain - BEP20):</label>
                     <input type="text" name="wallet_bep20" value="{{ config.wallet_bep20 }}">
@@ -186,7 +186,6 @@ DASHBOARD_HTML = """
 </html>
 """
 
-# مسارات خادم الويب وجلسات الحماية الآمنة
 @app.route('/')
 def home():
     if 'logged_in' in session: return render_template_string(DASHBOARD_HTML, config=BOT_CONFIG, msg=request.args.get('msg'))
@@ -218,14 +217,13 @@ def run_http_server():
     app.run(host='0.0.0.0', port=8080)
 
 
-# 🤖 برمجة وهيكلة صلاحيات بوت الديسكورد الذكي
+# 🤖 برمجة وهيكلة صلاحيات بوت الديسكورد
 TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# دالة ذكية لفحص رتب المشرفين بناء على لوحة التحكم
 def has_dashboard_permission(user, config_key):
     if user.guild_permissions.administrator:
         return True
@@ -261,12 +259,13 @@ class AdminApprovalView(View):
                 msg = f"مرحباً <@{self.buyer_id}>، تم التحقق من تحويل الكريبتو الخاص بك بنجاح. سيتم تسليمك البيانات المباشرة الآن." if self.lang == "ar" else f"Hello <@{self.buyer_id}>, your payment has been verified. Check your credentials right now."
                 await ticket_channel.send(embed=discord.Embed(title=title, description=msg, color=discord.Color.green()))
                 
-                # إرسال تقييم تلقائي لروم الـ Reviews إذا كان مفعل من اللوحة
                 if BOT_CONFIG["enable_welcome"] == "on":
-                    rev_channel = bot.get_channel(int(BOT_CONFIG["reviews_channel_id"]))
-                    if rev_channel:
-                        embed_rev = discord.Embed(title="⭐ عملية شراء جديدة ناجحة", description=f"شكرًا لك <@{self.buyer_id}> على ثقتك بمتجرنا! تم شراء الحساب بنجاح 🪙.", color=discord.Color.gold())
-                        await rev_channel.send(embed=embed_rev)
+                    try:
+                        rev_channel = bot.get_channel(int(BOT_CONFIG["reviews_channel_id"]))
+                        if rev_channel:
+                            embed_rev = discord.Embed(title="⭐ عملية شراء جديدة ناجحة", description=f"شكرًا لك <@{self.buyer_id}> على ثقتك بمتجرنا! تم شراء الحساب بنجاح 🪙.", color=discord.Color.gold())
+                            await rev_channel.send(embed=embed_rev)
+                    except: pass
         else:
             await interaction.response.send_message("❌ الرتبة الخاصة بك غير مصرح لها بالموافقة من لوحة التحكم!", ephemeral=True)
 
@@ -335,7 +334,7 @@ class StoreDropdown(Select):
         embed = discord.Embed(color=discord.Color.red())
         if lang == "ar":
             embed.title = "🎯 متجر LTB الفوري"
-            embed.description = f"مرحباً {member.mention}، اكتب **رقم الحساب** المطلوب لعرض صوره فوراً في الشات، أو ضع تفاصيل العرض الفني للمقايضة."
+            embed.description = f"مرحباً {member.mention}، اكتب **رقم الحساب** المطلوب لعرض صوره فوراً في الشات، أو وضع تفاصيل العرض الفني للمقايضة."
         else:
             embed.title = "🎯 LTB Fast Desk"
             embed.description = f"Welcome {member.mention}, send the exact **Account ID** numerical value to view details, or place your trade information."
@@ -411,7 +410,6 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-@bot.context_interceptor
 @bot.command()
 async def setup(ctx):
     if has_dashboard_permission(ctx.author, "perm_setup_cmd"):
