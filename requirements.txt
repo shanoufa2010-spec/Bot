@@ -1,2 +1,4 @@
+google-generativeai
+aiohttp
 discord.py
-Flask
+flask
