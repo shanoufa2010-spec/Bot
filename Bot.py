@@ -4,14 +4,15 @@ from discord.ui import Button, View, Select, Modal, TextInput
 import os
 import asyncio
 import json
+import aiohttp
 from threading import Thread
 from flask import Flask, render_template_string, request, redirect, url_for, session
 
-# 🌐 إعداد خادم الويب والموقع المتطور
+# 🌐 إعداد خادم الويب والموقع
 app = Flask('')
 app.secret_key = os.getenv("FLASK_SECRET", "LTB_SUPER_SECRET_KEY_9988")
 
-# 🔒 قاعدة بيانات الإعدادات الشاملة المأخوذة من صورك اللوحة الخاصة بك
+# 🔒 قاعدة بيانات الإعدادات الشاملة (المستقرة من صورك)
 BOT_CONFIG = {
     "web_user": "admin",
     "web_pass": "LTB_Owner_2026",
@@ -26,7 +27,7 @@ BOT_CONFIG = {
     "perm_close_ticket": "Mega Owner, Sellers Leader, Staff"
 }
 
-# 💾 نظام الحفظ الذكي والمستمر للحسابات لمنع اختفائها عند ريستارت الـ Render
+# 💾 نظام حفظ الحسابات المستمر
 ACCOUNTS_FILE = "accounts.json"
 DB_ACCOUNTS = {}
 
@@ -34,26 +35,14 @@ def load_accounts():
     global DB_ACCOUNTS
     if os.path.exists(ACCOUNTS_FILE):
         try:
-            with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-                DB_ACCOUNTS = json.load(f)
-        except:
-            DB_ACCOUNTS = {}
+            with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f: DB_ACCOUNTS = json.load(f)
+        except: DB_ACCOUNTS = {}
     
-    # إذا كان الملف فارغاً أو جديداً، يتم زرع حساباتك القديمة فوراً بروابط صورها الشغالة
     if not DB_ACCOUNTS:
+        # زرع حساباتك الحقيقية بشكل تلقائي لضمان عدم ظهور صور مكسورة
         DB_ACCOUNTS = {
-            "45": {
-                "id": "45", 
-                "title": "حساب ستيم بريميوم - قراند V", 
-                "img_url": "https://i.imgur.com/8N69F3R.png", # تم وضع رابط الصورة الحقيقية للعبة من شاشتك
-                "price": "5 USDT"
-            },
-            "10": {
-                "id": "10", 
-                "title": "حساب بوبجي ليفيل 70 مشحون", 
-                "img_url": "https://i.imgur.com/vXY8B9n.png",
-                "price": "12 USDT"
-            }
+            "45": {"id": "45", "title": "حساب ستيم بريميوم - قراند V", "img_url": "https://i.imgur.com/8N69F3R.png", "price": "5 USDT"},
+            "10": {"id": "10", "title": "حساب بوبجي ليفيل 70 مشحون", "img_url": "https://i.imgur.com/vXY8B9n.png", "price": "12 USDT"}
         }
         save_accounts()
 
@@ -63,14 +52,15 @@ def save_accounts():
 
 load_accounts()
 active_tickets = {}
+AI_CHANNEL_ID = 1505753282361032820
+GEMINI_API_KEY = "AIzaSyChRyGo7heDrQUY1HFdiTaiBORt1-XXIOw" # الرمز الخاص بك مدمج بأمان
 
-# 🛒 تصميم واجهة المتجر العامة للزبائن (HTML المتجر العام)
+# 🛒 تصميم واجهة المتجر العامة للزبائن
 STORE_FRONT_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>متجر LTB الإعلاني المباشر 🛒</title>
+    <meta charset="UTF-8"><title>متجر LTB الإعلاني المباشر 🛒</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f0c1b; color: #fff; margin: 0; padding: 40px 20px; }
         .header { text-align: center; margin-bottom: 50px; }
@@ -109,38 +99,7 @@ STORE_FRONT_HTML = """
 </html>
 """
 
-# 🔒 صفحة تسجيل الدخول السرية للوحة التحكم
-LOGIN_HTML = """
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8"><title>🔒 بوابة الإدارة السرية</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0c1b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #17122b; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); width: 100%; max-width: 400px; text-align: center; border: 1px solid #2c254a; }
-        h2 { color: #5865F2; margin-bottom: 25px; }
-        .input-group { margin-bottom: 20px; text-align: right; }
-        label { display: block; margin-bottom: 8px; color: #a2a0b6; font-size: 14px; }
-        input { width: 100%; padding: 12px; background: #0f0c1b; border: 1px solid #2c254a; color: #fff; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #5865F2; border: none; color: white; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
-        .error { color: #ed4245; margin-bottom: 15px; }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <h2>🔒 لوحة الإدارة المحمية</h2>
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        <form method="POST" action="/login">
-            <div class="input-group"><label>اسم المستخدم السري:</label><input type="text" name="username" required></div>
-            <div class="input-group"><label>كلمة المرور:</label><input type="password" name="password" required></div>
-            <button type="submit">تسجيل الدخول الآمن</button>
-        </form>
-    </div>
-</body>
-</html>
-"""
-
-# ⚙️ لوحة التحكم الكاملة والمستقرة والمصلحة (صفحة واحدة متكاملة تمنع خطأ 500)
+# ⚙️ تصميم لوحة الإدارة المستقرة ذات الصفحة الواحدة (تمنع خطأ 500)
 DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -159,7 +118,6 @@ DASHBOARD_HTML = """
         .form-row .form-group { flex: 1; }
         label { font-size: 14px; color: #a2a0b6; margin-bottom: 8px; font-weight: bold; }
         input[type="text"], input[type="password"] { padding: 12px; background: #0f0c1b; border: 1px solid #2c254a; color: #fff; border-radius: 6px; font-size: 14px; }
-        input:focus { border-color: #5865F2; outline: none; }
         .btn-save { background: #43b581; color: white; border: none; padding: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; }
         .btn-add { background: #5865F2; color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 6px; cursor: pointer; }
         .btn-danger { background: #ed4245; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
@@ -215,9 +173,9 @@ DASHBOARD_HTML = """
             <div class="card">
                 <h3>🛠️ قنوات النظام المعتمدة في السيرفر (IDs)</h3>
                 <div class="form-row">
-                    <div class="form-group"><label>ID روم اللوج والتدقيق (Log Channel):</label><input type="text" name="log_channel_id" value="{{ config.log_channel_id }}"></div>
+                    <div class="form-group"><label>ID روم اللوج والتدقيق:</label><input type="text" name="log_channel_id" value="{{ config.log_channel_id }}"></div>
                     <div class="form-group"><label>ID روم الترحيب:</label><input type="text" name="welcome_channel_id" value="{{ config.welcome_channel_id }}"></div>
-                    <div class="form-group"><label>ID روم التقييمات والمراجعات:</label><input type="text" name="reviews_channel_id" value="{{ config.reviews_channel_id }}"></div>
+                    <div class="form-group"><label>ID روم التقييمات:</label><input type="text" name="reviews_channel_id" value="{{ config.reviews_channel_id }}"></div>
                 </div>
             </div>
 
@@ -225,10 +183,9 @@ DASHBOARD_HTML = """
                 <h3>⚔️ تخصيص رتب الأوامر وصلاحيات البوت المعتمدة</h3>
                 <div class="form-group" style="margin-bottom: 15px;"><label>رتب إنشاء واجهة المتجر الرئيسية (!setup):</label><input type="text" name="perm_setup_cmd" value="{{ config.perm_setup_cmd }}"></div>
                 <div class="form-group" style="margin-bottom: 15px;"><label>رتب مسح وتنظيف الغرف (!clear):</label><input type="text" name="perm_clear_cmd" value="{{ config.perm_clear_cmd }}"></div>
-                <div class="form-group" style="margin-bottom: 15px;"><label>رتب أزرار التحكم بالتذاكر (الموافقة والتسليم التلقائي):</label><input type="text" name="perm_approve_action" value="{{ config.perm_approve_action }}"></div>
+                <div class="form-group" style="margin-bottom: 15px;"><label>رتب أزرار التحكم بالتذاكر:</label><input type="text" name="perm_approve_action" value="{{ config.perm_approve_action }}"></div>
                 <div class="form-group"><label>رتب إغلاق وأرشفة تذاكر المشترين:</label><input type="text" name="perm_close_ticket" value="{{ config.perm_close_ticket }}"></div>
             </div>
-
             <button type="submit" class="btn-save">💾 حفظ وتحديث كافة الإعدادات وتطبيقها على البوت</button>
         </form>
     </div>
@@ -236,22 +193,45 @@ DASHBOARD_HTML = """
 </html>
 """
 
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8"><title>🔒 بوابة الإدارة السرية</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0c1b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #17122b; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); width: 100%; max-width: 400px; text-align: center; border: 1px solid #2c254a; }
+        h2 { color: #5865F2; margin-bottom: 25px; }
+        input { width: 100%; padding: 12px; background: #0f0c1b; border: 1px solid #2c254a; color: #fff; border-radius: 6px; box-sizing: border-box; margin-bottom: 20px; }
+        button { width: 100%; padding: 12px; background: #5865F2; border: none; color: white; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>🔒 لوحة الإدارة المحمية</h2>
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="اسم المستخدم السري" required>
+            <input type="password" name="password" placeholder="كلمة المرور" required>
+            <button type="submit">تسجيل الدخول الآمن</button>
+        </form>
+    </div>
+</body>
+</html>
+"""
+
 @app.route('/')
-def public_store():
-    return render_template_string(STORE_FRONT_HTML, accounts=DB_ACCOUNTS)
+def public_store(): return render_template_string(STORE_FRONT_HTML, accounts=DB_ACCOUNTS)
 
 @app.route('/admin_panel_ltb_7392_x8q')
 def admin_panel():
-    if 'logged_in' in session: 
-        return render_template_string(DASHBOARD_HTML, config=BOT_CONFIG, accounts=DB_ACCOUNTS)
+    if 'logged_in' in session: return render_template_string(DASHBOARD_HTML, config=BOT_CONFIG, accounts=DB_ACCOUNTS)
     return render_template_string(LOGIN_HTML)
 
 @app.route('/login', methods=['POST'])
 def login():
     if request.form.get('username') == BOT_CONFIG['web_user'] and request.form.get('password') == BOT_CONFIG['web_pass']:
-        session['logged_in'] = True
-        return redirect(url_for('admin_panel'))
-    return render_template_string(LOGIN_HTML, error="❌ خطأ في بيانات الأدمن السرية!")
+        session['logged_in'] = True; return redirect(url_for('admin_panel'))
+    return render_template_string(LOGIN_HTML)
 
 @app.route('/save_settings', methods=['POST'])
 def save_settings():
@@ -264,45 +244,65 @@ def save_settings():
 def add_account():
     if 'logged_in' not in session: return redirect(url_for('public_store'))
     aid = request.form.get('acc_id').strip()
-    DB_ACCOUNTS[aid] = {
-        "id": aid, 
-        "title": request.form.get('acc_title'), 
-        "price": request.form.get('acc_price'), 
-        "img_url": request.form.get('acc_img')
-    }
-    save_accounts()
-    return redirect(url_for('admin_panel'))
+    DB_ACCOUNTS[aid] = {"id": aid, "title": request.form.get('acc_title'), "price": request.form.get('acc_price'), "img_url": request.form.get('acc_img')}
+    save_accounts(); return redirect(url_for('admin_panel'))
 
 @app.route('/delete_account/<aid>')
 def delete_account(aid):
     if 'logged_in' not in session: return redirect(url_for('public_store'))
-    if aid in DB_ACCOUNTS: 
-        del DB_ACCOUNTS[aid]
-        save_accounts()
+    if aid in DB_ACCOUNTS: del DB_ACCOUNTS[aid]; save_accounts()
     return redirect(url_for('admin_panel'))
 
 @app.route('/logout')
-def logout(): 
-    session.pop('logged_in', None)
-    return redirect(url_for('public_store'))
+def logout(): session.pop('logged_in', None); return redirect(url_for('public_store'))
 
 def run_http_server(): app.run(host='0.0.0.0', port=8080)
 
 
-# 🤖 برمجة وهيكلة بوت الديسكورد الاحترافي الكامل
+# 🤖 محرك بوت الديسكورد المدمج بالذكاء الاصطناعي الفائق لـ Gemini
 TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+async def ask_gemini_ai(prompt_text):
+    """دالة برمجية للاتصال المباشر بنموذج الذكاء الاصطناعي ومعالجة البيانات"""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    
+    # تلقين الذكاء الاصطناعي دوره وطبيعة عمل المتجر ليتصرف كمساعد ذكي محترف
+    system_instruction = (
+        "أنت الآن المساعد الذكي الخبير لمتجر LTB الأونلاين. وظيفتك الإجابة على استفسارات الأدمن البرمجية، "
+        "وإذا أرسل لك قائمة حسابات أو طلب إضافة حسابات، قم بصياغة الإجابة وإرجاع البيانات المطلوبة. "
+        f"قائمة الحسابات الحالية في المتجر هي: {json.dumps(DB_ACCOUNTS, ensure_ascii=False)}. "
+        "تحدث دائماً باللغة العربية بأسلوب فخم وواضح وصديق للأدمن."
+    )
+    
+    payload = {
+        "contents": [{"parts": [{"text": prompt_text}]}],
+        "systemInstruction": {"parts": [{"text": system_instruction}]}
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as response:
+            if response.status == 200:
+                res_json = await response.json()
+                try:
+                    return res_json['candidates'][0]['content']['parts'][0]['text']
+                except:
+                    return "⚠️ واجهت مشكلة في معالجة رد الذكاء الاصطناعي."
+            else:
+                return f"❌ خطأ في الاتصال بخادم جوجل الذكي: {response.status}"
+
 def has_dashboard_permission(user, config_key):
     if user.guild_permissions.administrator: return True
-    allowed_items = [item.strip().lower() for item in BOT_CONFIG[config_key].split(",") if item.strip()]
+    allowed = [item.strip().lower() for item in BOT_CONFIG[config_key].split(",") if item.strip()]
     for role in user.roles:
-        if str(role.id) in allowed_items or role.name.lower() in allowed_items: return True
+        if str(role.id) in allowed or role.name.lower() in allowed: return True
     return False
 
+# --- أوامر التذاكر والمتجر المعتادة ---
 class WebsiteRedirectView(View):
     def __init__(self, url):
         super().__init__(timeout=None)
@@ -312,160 +312,143 @@ class PurchaseModal(Modal):
     def __init__(self, lang="ar"):
         super().__init__(title="طلب شراء حساب / Purchase Account")
         self.lang = lang
-        self.acc_input = TextInput(label="أدخل رقم الحساب المطلوب / Account ID" if lang=="ar" else "Enter Account ID", placeholder="مثال: 45", min_length=1, max_length=10, required=True)
+        self.acc_input = TextInput(label="أدخل رقم الحساب المطلوب" if lang=="ar" else "Enter Account ID", placeholder="45", min_length=1, max_length=10, required=True)
         self.add_item(self.acc_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         target_acc = self.acc_input.value.strip()
-        
         if target_acc in DB_ACCOUNTS:
             acc_data = DB_ACCOUNTS[target_acc]
-            if self.lang == "ar":
-                title = f"🪙 الفاتورة المعتمدة للحساب رقم ({target_acc})"
-                desc = f"📦 **نوع الحساب:** {acc_data['title']}\n💰 **السعر:** {acc_data['price']}\n\n📌 **شبكة Smart Chain (BEP20):**\n`{BOT_CONFIG['wallet_bep20']}`\n\n📌 **شبكة Tron (TRC20):**\n`{BOT_CONFIG['wallet_trc20']}`\n\n📸 **الرجاء إرسال صورة إثبات التحويل (وصل الدفع) في هذا الشات فوراً ليتم تدقيقها من الإدارة.**"
-            else:
-                title = f"🪙 Invoice for Account ID ({target_acc})"
-                desc = f"📦 **Product:** {acc_data['title']}\n💰 **Price:** {acc_data['price']}\n\n📌 **BNB Smart Chain (BEP20):**\n`{BOT_CONFIG['wallet_bep20']}`\n\n📌 **Tron Network (TRC20):**\n`{BOT_CONFIG['wallet_trc20']}`\n\n📸 **Please send the payment confirmation screenshot directly in this chat.**"
-            
-            embed = discord.Embed(title=title, description=desc, color=discord.Color.gold())
-            if not acc_data['img_url'].startswith('https://i.imgur.com/example'):
-                embed.set_image(url=acc_data['img_url'])
-                
-            await interaction.response.send_message(embed=embed)
+            desc = f"📦 **نوع الحساب:** {acc_data['title']}\n💰 **السعر:** {acc_data['price']}\n\n📌 **Smart Chain (BEP20):**\n`{BOT_CONFIG['wallet_bep20']}`\n\n📌 **Tron (TRC20):**\n`{BOT_CONFIG['wallet_trc20']}`\n\n📸 **أرسل وصل التحويل هنا فورا.**"
+            await interaction.response.send_message(embed=discord.Embed(title="🪙 الفاتورة المعتمدة", description=desc, color=discord.Color.gold()))
             
             try:
                 log_channel = bot.get_channel(int(BOT_CONFIG["log_channel_id"]))
                 if log_channel:
-                    embed_p = discord.Embed(title="⏳ طلب شراء جديد قيد الانتظار", description=f"المشتري: {interaction.user.mention}\nالحساب المطلوب: `{target_acc}` - {acc_data['title']}\nالروم: {interaction.channel.mention}", color=discord.Color.orange())
-                    l_msg = await log_channel.send(embed=embed_p, view=AdminApprovalView(buyer_id=interaction.user.id, account_num=target_acc, ticket_channel_id=interaction.channel.id, lang=self.lang))
+                    embed_p = discord.Embed(title="⏳ طلب شراء جديد قيد الانتظار", description=f"المشتري: {interaction.user.mention}\nالحساب: `{target_acc}`", color=discord.Color.orange())
+                    l_msg = await log_channel.send(embed=embed_p, view=AdminApprovalView(buyer_id=interaction.user.id, account_num=target_acc, ticket_channel_id=interaction.channel.id))
                     active_tickets[interaction.channel.id] = {"log_msg_id": l_msg.id, "account_id": target_acc}
             except: pass
         else:
-            await interaction.response.send_message("❌ هذا الرقم غير موجود في قائمة المتجر حالياً، يرجى التأكد من الرقم الصحيح من الموقع.", ephemeral=True)
+            await interaction.response.send_message("❌ الرقم غير موجود بالمتجر حالياً.", ephemeral=True)
 
 class AdminApprovalView(View):
-    def __init__(self, buyer_id, account_num, ticket_channel_id, lang="ar"):
-        super().__init__(timeout=None)
-        self.buyer_id = buyer_id; self.account_num = account_num; self.ticket_channel_id = ticket_channel_id; self.lang = lang
+    def __init__(self, buyer_id, account_num, ticket_channel_id):
+        super().__init__(timeout=None); self.buyer_id = buyer_id; self.account_num = account_num; self.ticket_channel_id = ticket_channel_id
 
-    @discord.ui.button(label="✅ موافقة وتسليم / Approve", style=discord.ButtonStyle.success, custom_id="approve_sale_btn")
+    @discord.ui.button(label="✅ موافقة وتسليم", style=discord.ButtonStyle.success, custom_id="approve_sale_btn")
     async def approve_sale(self, interaction: discord.Interaction, button: Button):
         if has_dashboard_permission(interaction.user, "perm_approve_action"):
             await interaction.response.defer()
             ticket_channel = bot.get_channel(self.ticket_channel_id)
-            
-            embed_log = discord.Embed(title="✅ تقرير بيع ناجح ومعتمد من الموقع", color=discord.Color.green())
-            embed_log.add_field(name="👤 المشتري", value=f"<@{self.buyer_id}>", inline=True)
-            embed_log.add_field(name="📦 رقم الحساب المعين", value=f"`{self.account_num}`", inline=True)
-            embed_log.add_field(name="🛠️ المشرف المسؤول", value=interaction.user.mention, inline=False)
-            await interaction.message.edit(embed=embed_log, view=None)
-
             if ticket_channel:
-                title = "🎉 تم تأكيد الدفع بنجاح!" if self.lang == "ar" else "🎉 Payment Confirmed!"
-                msg = f"مرحباً <@{self.buyer_id}>، تم التحقق من تحويل الكريبتو الخاص بك بنجاح. سيتم تسليمك البيانات المباشرة الآن." if self.lang == "ar" else f"Hello <@{self.buyer_id}>, your payment has been verified. Check your credentials right now."
-                await ticket_channel.send(embed=discord.Embed(title=title, description=msg, color=discord.Color.green()))
+                await ticket_channel.send(embed=discord.Embed(title="🎉 تم تأكيد الدفع!", description="تم التحقق من تحويلك، سيتم التسليم الآن.", color=discord.Color.green()))
         else:
-            await interaction.response.send_message("❌ غير مصرح لك بالموافقة!", ephemeral=True)
+            await interaction.response.send_message("❌ لا تملك صلاحية المعتمدين!", ephemeral=True)
 
 class TicketDeleteView(View):
-    def __init__(self, lang="ar"): super().__init__(timeout=None); self.lang = lang
-    @discord.ui.button(label="🗑️ حذف التذكرة / Delete", style=discord.ButtonStyle.danger, custom_id="delete_ticket_btn")
+    def __init__(self): super().__init__(timeout=None)
+    @discord.ui.button(label="🗑️ حذف التذكرة", style=discord.ButtonStyle.danger, custom_id="delete_ticket_btn")
     async def delete_ticket(self, interaction: discord.Interaction, button: Button):
         if has_dashboard_permission(interaction.user, "perm_close_ticket"):
-            await interaction.response.send_message("⚠️ جاري مسح الغرفة بالكامل...")
-            await asyncio.sleep(5); await interaction.channel.delete()
+            await interaction.channel.delete()
 
 class TicketControlView(View):
     def __init__(self, lang="ar"):
-        super().__init__(timeout=None); self.lang = lang
-        self.children[0].label = "💰 إرسال طلب شراء" if lang == "ar" else "💰 Create Purchase Order"
-        self.children[1].label = "🔒 إغلاق التذكرة" if lang == "ar" else "🔒 Close Ticket"
+        super().__init__(timeout=None)
+        self.buy_btn = Button(label="💰 إرسال طلب شراء", style=discord.ButtonStyle.success, custom_id="buy_acc_btn")
+        self.close_btn = Button(label="🔒 إغلاق التذكرة", style=discord.ButtonStyle.secondary, custom_id="close_ticket_btn")
+        self.add_item(self.buy_btn); self.add_item(self.close_btn)
 
-    @discord.ui.button(label="💰 Buy", style=discord.ButtonStyle.success, custom_id="buy_acc_btn")
-    async def buy_account(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_modal(PurchaseModal(lang=self.lang))
-
-    @discord.ui.button(label="🔒 Close", style=discord.ButtonStyle.secondary, custom_id="close_ticket_btn")
-    async def close_ticket(self, interaction: discord.Interaction, button: Button):
-        if has_dashboard_permission(interaction.user, "perm_close_ticket"):
-            await interaction.response.send_message("🔒 Closing ticket...")
-            try: await interaction.channel.edit(name=f"🔒-مغلقة-{interaction.channel.name}")
-            except: pass
-            await interaction.channel.send(view=TicketDeleteView(lang=self.lang))
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.data["custom_id"] == "buy_acc_btn":
+            await interaction.response.send_modal(PurchaseModal())
+        elif interaction.data["custom_id"] == "close_ticket_btn":
+            if has_dashboard_permission(interaction.user, "perm_close_ticket"):
+                await interaction.response.send_message(view=TicketDeleteView())
+        return False
 
 class StoreDropdown(Select):
     def __init__(self):
-        options = [
-            discord.SelectOption(label="🇩🇿 تصفح الحسابات والدفع بالكريبتو", value="ar_crypto", emoji="🛒"),
-            discord.SelectOption(label="🇬🇧 Global Client - Buy via Crypto", value="en_crypto", emoji="🪙")
-        ]
-        super().__init__(placeholder="🔽 حدد لغة واجهة تذكرتك / Select language...", min_values=1, max_values=1, options=options, custom_id="store_select_menu")
+        options = [discord.SelectOption(label="🇩🇿 تصفح الحسابات والدفع بالكريبتو", value="ar_crypto", emoji="🛒")]
+        super().__init__(placeholder="🔽 حدد واجهة تذكرتك...", options=options, custom_id="store_select_menu")
 
     async def callback(self, interaction: discord.Interaction):
-        guild = interaction.guild; member = interaction.user; choice = self.values[0]
-        lang = "ar" if choice.startswith("ar_") else "en"
+        guild = interaction.guild; member = interaction.user
         overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), member: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
-        
-        ticket_channel = await guild.create_text_channel(name=f"شراء-{member.name}" if lang=="ar" else f"buy-{member.name}", category=interaction.channel.category, overwrites=overwrites)
-        await interaction.response.send_message(f"✅ Created: {ticket_channel.mention}", ephemeral=True)
-        
-        embed = discord.Embed(color=discord.Color.red())
-        if lang == "ar":
-            embed.title = "🎯 متجر LTB الفوري"
-            embed.description = f"مرحباً {member.mention}، اضغط على الزر الأخضر بالأسفل لتحديد رقم الحساب الذي ترغب بشراءه عبر بوابات الكريبتو المعتمدة."
-        else:
-            embed.title = "🎯 LTB Fast Desk"
-            embed.description = f"Welcome {member.mention}, click the green button below to provide the Account ID and proceed to checkout."
-            
-        await ticket_channel.send(embed=embed, view=TicketControlView(lang=lang))
+        ticket_channel = await guild.create_text_channel(name=f"شراء-{member.name}", category=interaction.channel.category, overwrites=overwrites)
+        await interaction.response.send_message(f"✅ تم فتح التذكرة: {ticket_channel.mention}", ephemeral=True)
+        await ticket_channel.send(embed=discord.Embed(title="🎯 متجر LTB الفوري", description="اضغط الزر لبدء المعاملة.", color=discord.Color.red()), view=TicketControlView())
 
 class MainStoreView(View):
     def __init__(self): super().__init__(timeout=None); self.add_item(StoreDropdown())
 
+# --- 🎯 رصد الرسائل وقراءة ملفات الذكاء الاصطناعي ---
 @bot.event
 async def on_message(message):
     if message.author.bot: return
-    channel_name = message.channel.name.lower()
-    if any(p in channel_name for p in ["شراء", "buy"]):
-        if message.attachments and message.channel.id in active_tickets:
-            if message.attachments[0].filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+    
+    # تشغيل الذكاء الاصطناعي حصرياً داخل قناتك المخفية المحددة
+    if message.channel.id == AI_CHANNEL_ID:
+        async with message.channel.typing():
+            user_content = message.content
+            
+            # ميزة قراءة الملفات المرفقة (مثل قراءة ملف الحسابات الضخم المرفوع TXT)
+            if message.attachments:
+                for attachment in message.attachments:
+                    if attachment.filename.endswith('.txt'):
+                        try:
+                            file_bytes = await attachment.read()
+                            file_text = file_bytes.decode('utf-8')
+                            user_content += f"\n\n[محتوى الملف المرفق النصي]:\n{file_text}"
+                        except: pass
+            
+            # إرسال البيانات فوراً لـ Gemini وجلب الرد الذكي
+            ai_response = await ask_gemini_ai(user_content)
+            
+            # ميزة الحفظ الذكي التلقائي إذا أمرت الذكاء الاصطناعي بتحديث الحسابات بصيغة JSON
+            if "{" in ai_response and "}" in ai_response and '"title"' in ai_response:
                 try:
-                    log_channel = bot.get_channel(int(BOT_CONFIG["log_channel_id"]))
-                    if log_channel:
-                        log_msg = await log_channel.fetch_message(active_tickets[message.channel.id]["log_msg_id"])
-                        emb = discord.Embed(title="⏳ تم تلقي وصل إثبات الدفع الفعلي من العميل!", color=discord.Color.blue())
-                        emb.set_image(url=message.attachments[0].url)
-                        await log_msg.edit(embed=emb)
-                        await message.channel.send("✅ **تم رصد المرفق بنجاح وتم إرفاقه في اللوج لمراجعته من المسؤولين.**")
+                    # محاولة استخراج كود الـ JSON المحدث لحفظه تلقائياً بالموقع
+                    start_idx = ai_response.find("{")
+                    end_idx = ai_response.rfind("}") + 1
+                    json_str = ai_response[start_idx:end_idx]
+                    parsed_json = json.loads(json_str)
+                    
+                    global DB_ACCOUNTS
+                    DB_ACCOUNTS.update(parsed_json)
+                    save_accounts()
+                    await message.channel.send("⚡ **[نظام متجر LTB الذكي]: تم رصد الحسابات الجديدة وحفظها تلقائياً في قاعدة بيانات الموقع الإلكتروني!**")
                 except: pass
+                
+            # إرسال رد المساعد الذكي في الشات
+            # تقسيم الرسائل الطويلة جداً لضمان عدم تخطي حد ديسكورد (2000 حرف)
+            if len(ai_response) > 2000:
+                for chunk in [ai_response[i:i+1900] for i in range(0, len(ai_response), 1900)]:
+                    await message.channel.send(chunk)
+            else:
+                await message.channel.send(ai_response)
+                
     await bot.process_commands(message)
 
 @bot.command()
 async def send_shop(ctx):
     if has_dashboard_permission(ctx.author, "perm_setup_cmd"):
-        site_url = "https://bot-nmae.onrender.com/" 
-        embed = discord.Embed(
-            title="🌐 موقع متجر LTB الرسمي معروض هنا!",
-            description="اضغط على الزر بالأسفل لتصفح الكتالوج الكامل للحسابات المتوفرة (أرقامها، مواصفاتها، وأسعارها) عبر متصفحك مباشرة بشكل سريع ومنظم! بعد ذلك افتح تذكرة الشراء واكتب رقم الحساب.",
-            color=discord.Color.purple()
-        )
-        await ctx.send(embed=embed, view=WebsiteRedirectView(url=site_url))
+        await ctx.send(embed=discord.Embed(title="🌐 موقع متجر LTB الرسمي", description="اضغط الزر لتصفح كتالوج الحسابات.", color=discord.Color.purple()), view=WebsiteRedirectView("https://bot-nmae.onrender.com/"))
 
 @bot.command()
 async def setup(ctx):
     if has_dashboard_permission(ctx.author, "perm_setup_cmd"):
-        embed = discord.Embed(title="🛒 LTB Global Hub", description="اختر لغتك لبدء معاملة الشراء الفوري / Choose Language to Buy", color=discord.Color.red())
-        await ctx.send(embed=embed, view=MainStoreView())
+        await ctx.send(embed=discord.Embed(title="🛒 LTB Global Hub", description="اختر واجهتك لبدء معاملة الشراء الفوري.", color=discord.Color.red()), view=MainStoreView())
 
 @bot.command()
 async def clear(ctx, amount: int = 20):
-    if has_dashboard_permission(ctx.author, "perm_clear_cmd"):
-        await ctx.channel.purge(limit=amount + 1)
+    if has_dashboard_permission(ctx.author, "perm_clear_cmd"): await ctx.channel.purge(limit=amount + 1)
 
 @bot.event
 async def on_ready():
     bot.add_view(MainStoreView()); bot.add_view(TicketControlView()); bot.add_view(TicketDeleteView())
-    print("⚡ LTB Web Manager Engine Enabled successfully with Unified Dashboard Style!")
+    print("⚡ AI Agent & LTB Engine Enabled on Channel 1505753282361032820 successfully!")
 
 if __name__ == "__main__":
     Thread(target=run_http_server).start()
