@@ -6,8 +6,9 @@ from flask import Flask, render_template_string, request, redirect, url_for, ses
 from werkzeug.utils import secure_filename
 import discord
 from discord.ext import commands
+from discord.ui import Button, View, Select, Modal, TextInput
 
-# 🌐 إعداد خادم الويب وإعدادات المجلدات
+# 🌐 إعداد خادم الويب والمجلدات
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "LTB_SUPER_SECRET_KEY_9988")
 
@@ -16,7 +17,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# 🔒 قاعدة بيانات الإعدادات الشاملة (لوحة التحكم الكاملة)
+# 🔒 قاعدة البيانات والإعدادات الكاملة للسيرفر والتذاكر
 BOT_CONFIG = {
     "web_user": "admin",
     "web_pass": "LTB_Owner_2026",
@@ -34,8 +35,9 @@ BOT_CONFIG = {
 DISCORD_SERVER_LINK = "https://discord.gg/quMbWAKgZy"
 ACCOUNTS_FILE = "accounts.json"
 DB_ACCOUNTS = {}
+active_tickets = {}
 
-# 📂 دالة قراءة الحسابات وترتيبها حسابياً بشكل صحيح (1، 2، 3... إلى 60)
+# 📂 دالة تحميل وضمان الـ 60 حساباً بالترتيب الرقمي الصحيح
 def load_accounts():
     global DB_ACCOUNTS
     if os.path.exists(ACCOUNTS_FILE):
@@ -45,11 +47,11 @@ def load_accounts():
         except:
             DB_ACCOUNTS = {}
             
-    # توليد وضمان وجود الحسابات من 1 إلى 60 مرتبة عددياً
+    # توليد وتأمين الحسابات من 1 إلى 60
     for i in range(1, 61):
         str_id = str(i)
         if str_id not in DB_ACCOUNTS:
-            account_img = "https://i.imgur.com/8N69F3R.png" # صورة افتراضية
+            account_img = "https://i.imgur.com/8N69F3R.png"
             folder_path = os.path.join(UPLOAD_FOLDER, str_id)
             if os.path.exists(folder_path):
                 images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
@@ -77,12 +79,10 @@ STORE_FRONT_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>LTB MEGA STORE | المتجر 🛒</title>
+    <meta charset="UTF-8"><title>LTB MEGA STORE | المتجر 🛒</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #07050c; color: #fff; padding: 40px 20px; }
-        .header { text-align: center; max-width: 850px; margin: 0 auto 50px auto; background: rgba(19, 15, 36, 0.7); padding: 30px; border-radius: 16px; border: 1px solid #3d2f6d; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; }
+        body { font-family: 'Segoe UI', sans-serif; background: #07050c; color: #fff; padding: 40px 20px; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; max-width: 1200px; margin: 20px auto; }
         .card { background: rgba(19, 15, 36, 0.7); border-radius: 16px; border: 1px solid #3d2f6d; overflow: hidden; position: relative; text-align: right; }
         .card img { width: 100%; height: 180px; object-fit: cover; }
         .card-body { padding: 20px; }
@@ -92,9 +92,7 @@ STORE_FRONT_HTML = """
     </style>
 </head>
 <body>
-    <div class="header">
-        <h2>⚡ LTB GLOBAL HUB | المتجر الشامل</h2>
-    </div>
+    <h2>⚡ LTB GLOBAL HUB | الكتالوج الموحد الشامل (1-60)</h2>
     <div class="grid">
         {% for acc_id in accounts.keys()|map('int')|sort %}
         {% set data = accounts[acc_id|string] %}
@@ -112,7 +110,7 @@ STORE_FRONT_HTML = """
 </html>
 """
 
-# ⚙️ لوحة الإدارة الكاملة المحدثة (ترتيب رقمي صحيح + رفع ملفات الصور مباشرة + باقي الإعدادات)
+# ⚙️ لوحة الإدارة الكاملة المحدثة (تعديل الإعدادات + رفع ملفات الصور مباشرة + الترتيب الرقمي)
 DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -140,12 +138,12 @@ DASHBOARD_HTML = """
 <body>
     <div class="container">
         <div class="header-bar">
-            <h2>⚙️ لوحة التحكم والإدارة الشاملة لـ LTB</h2>
+            <h2>⚙️ لوحة التحكم والإدارة الشاملة لنظام LTB والمتجر</h2>
             <a href="/logout" class="logout-btn">🚪 خروج آمن</a>
         </div>
 
         <div class="card">
-            <h3>🔒 إعدادات البوت والمنصة العامة</h3>
+            <h3>🔒 إعدادات البوت والمنصة العامة والتذاكر</h3>
             <form method="POST" action="/update_config">
                 <div class="form-grid">
                     <div class="form-group">
@@ -163,11 +161,11 @@ DASHBOARD_HTML = """
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>رتب إعداد الأوامر (تفصل بفاصلة):</label>
+                        <label>رتب إعداد الأوامر (Setup):</label>
                         <input type="text" name="perm_setup_cmd" value="{{ config.perm_setup_cmd }}">
                     </div>
                     <div class="form-group">
-                        <label>رتب إغلاق التذاكر:</label>
+                        <label>رتب إغلاق التذاكر (Tickets):</label>
                         <input type="text" name="perm_close_ticket" value="{{ config.perm_close_ticket }}">
                     </div>
                     <div class="form-group">
@@ -192,7 +190,6 @@ DASHBOARD_HTML = """
                     </tr>
                 </thead>
                 <tbody>
-                    {# ترتيب الحسابات عددياً بشكل صحيح 1، 2، 3...60 #}
                     {% for acc_id in accounts.keys()|map('int')|sort %}
                     {% set data = accounts[acc_id|string] %}
                     <tr>
@@ -202,7 +199,7 @@ DASHBOARD_HTML = """
                         <td><b style="color:#00ff87;">{{ data.price }}</b></td>
                         <td>
                             <form method="POST" action="/update_account_full/{{ acc_id }}" enctype="multipart/form-data" class="file-input-wrapper">
-                                <input type="text" name="u_title" value="{{ data.title }}" style="width: 180px;" placeholder="اسم وعنوان المنتج" required>
+                                <input type="text" name="u_title" value="{{ data.title }}" style="width: 180px;" placeholder="اسم الحساب" required>
                                 <input type="text" name="u_price" value="{{ data.price }}" style="width: 70px;" placeholder="السعر" required>
                                 <input type="file" name="u_file" accept="image/*" style="width: 160px;">
                                 <button type="submit" class="btn-update">⚡ رفع وحفظ</button>
@@ -274,24 +271,17 @@ def update_account_full(aid):
         DB_ACCOUNTS[aid]['title'] = request.form.get('u_title').strip()
         DB_ACCOUNTS[aid]['price'] = request.form.get('u_price').strip()
         
-        # معالجة ورفع ملف الصورة مباشرة للمجلد الخاص بالحساب
         file = request.files.get('u_file')
         if file and file.filename != '':
             acc_folder = os.path.join(app.config['UPLOAD_FOLDER'], str(aid))
             os.makedirs(acc_folder, exist_ok=True)
-            
-            # مسح الصور القديمة داخل المجلد لتوفير المساحة ومنع التداخل
             for f in os.listdir(acc_folder):
                 try: os.remove(os.path.join(acc_folder, f))
                 except: pass
-                
             filename = secure_filename(file.filename)
             file_path = os.path.join(acc_folder, filename)
             file.save(file_path)
-            
-            # تحديث مسار الصورة المرفوعة داخل الكود
             DB_ACCOUNTS[aid]['img_url'] = f"/static/uploads/{aid}/{filename}"
-            
         save_accounts()
     return redirect(url_for('admin_panel'))
 
@@ -303,14 +293,66 @@ def logout():
 def run_http_server(): 
     app.run(host='0.0.0.0', port=8080)
 
-# 🤖 تشغيل البوت الأساسي
+
+# 🤖 إعداد وتشغيل نظام التذاكر للديسكورد (Discord Tickets System)
 TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
+intents.message_content = True
+intents.guilds = True
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+class TicketControlView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🔒 إغلاق التذكرة", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn")
+    async def close_ticket(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_message("⚙️ جاري إغلاق وتأشير التذكرة الحالية...")
+        await interaction.channel.delete(delay=3)
+
+class OpenTicketView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="📩 فتح تذكرة شراء / مقايضة", style=discord.ButtonStyle.success, custom_id="open_ticket_btn")
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
+        guild = interaction.guild
+        member = interaction.user
+        
+        # إنشاء روم التذكرة داخل السيرفر
+        ticket_channel = await guild.create_text_channel(
+            name=f"ticket-{member.name}",
+            category=interaction.channel.category
+        )
+        
+        await ticket_channel.set_permissions(guild.default_role, read_messages=False)
+        await ticket_channel.set_permissions(member, read_messages=True, send_messages=True)
+        
+        embed = discord.Embed(
+            title="🎯 تذكرة المعاملات الرسمية",
+            description=f"مرحباً بك يا {member.mention} في تذكرتك المخصصة.\nيرجى تحديد رقم الحساب من الـ 60 حساب المتوفرة وتجهيز الدفع لحين رد الإدارة والـ Sellers.",
+            color=0x5865F2
+        )
+        await ticket_channel.send(embed=embed, view=TicketControlView())
+        await interaction.response.send_message(f"✅ تم فتح تذكرتك بنجاح هنا: {ticket_channel.mention}", ephemeral=True)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_tickets(ctx):
+    """أمر برمجيات لتثبيت رسالة التذاكر الثابتة في سيرفر الديسكورد"""
+    embed = discord.Embed(
+        title="🛒 مركز الدعم وشراء الحسابات | LTB",
+        description="اضغط على الزر أدناه لفتح تذكرة خاصة بك للتواصل الفوري مع الوسطاء والبائعين المعتمدين بشهادة السيرفر.",
+        color=0x43b581
+    )
+    await ctx.send(embed=embed, view=OpenTicketView())
 
 @bot.event
 async def on_ready():
-    print("⚡ LTB Dashboard Engine Active. 1-60 Ordered With File Upload Feature!")
+    bot.add_view(OpenTicketView())
+    bot.add_view(TicketControlView())
+    print("⚡ LTB Systems Fully Connected. Web Dashboard & Discord Tickets Combined!")
 
 if __name__ == "__main__":
     Thread(target=run_http_server).start()
