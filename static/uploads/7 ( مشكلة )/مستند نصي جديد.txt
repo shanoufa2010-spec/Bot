@@ -1,3 +1,0 @@
-user Keyshop_Assassins
-
-pass Passcode123p

@@ -1,3 +1,0 @@
-user papyyafka
-
-pass 71E7UkmGb0MIvq8

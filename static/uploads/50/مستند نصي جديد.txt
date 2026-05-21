@@ -1,3 +1,0 @@
-user seneshm
-
-pass marpanov1
