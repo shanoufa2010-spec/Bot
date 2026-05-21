@@ -34,7 +34,7 @@ BOT_CONFIG = {
 
 DISCORD_SERVER_LINK = "https://discord.gg/quMbWAKgZy"
 
-# 💾 نظام حفظ الحسابات
+# 💾 نظام حفظ الحسابات الذكي
 ACCOUNTS_FILE = "accounts.json"
 DB_ACCOUNTS = {}
 
@@ -47,13 +47,29 @@ def load_accounts():
         except:
             DB_ACCOUNTS = {}
     
+    # 🛒 تم زراعة الحسابات هنا تلقائياً داخل الموقع مع أوصافها الخاصة بناءً على طلبك
     if not DB_ACCOUNTS:
         DB_ACCOUNTS = {
             "45": {
                 "id": "45", 
-                "title": "حساب ستيم بريميوم - قراند V", 
+                "title": "حساب ستيم ملوكي - قراند V نسخة كاملة (GTA V)", 
+                "description": "حساب ستيم أصلي يحتوي على اللعبة الأسطورية Grand Theft Auto V بكامل طور القصة والأونلاين جاهز للتحميل واللعب فوراً! الحساب آمن ومستقر 100% ومثالي لمن يمتلك كارت شاشة مثل GTX 1650 أو 1660 للاستمتاع بأعلى سلاسة وأفضل فريمات.",
                 "img_url": "https://i.imgur.com/8N69F3R.png",
                 "price": "5 USDT"
+            },
+            "46": {
+                "id": "46", 
+                "title": "حساب ألعاب منوع - PixARK وألعاب بقاء ومغامرات", 
+                "description": "لعشاق المغامرات والعوالم المفتوحة والبناء! حساب يحتوي على لعبة البقاء والأنميشن الشهيرة PixARK بالإضافة إلى باقة من الألعاب الخفيفة والممتعة جداً للعب الجماعي وتجربتها مع الأصدقاء. الحساب مستقر تماماً وبضمان كامل.",
+                "img_url": "https://i.imgur.com/vXY8B9n.png",
+                "price": "4 USDT"
+            },
+            "47": {
+                "id": "47", 
+                "title": "حساب ستيم التحدي والسرعة - Assetto Corsa وأكشن", 
+                "description": "لعشاق محاكاة القيادة والسرعة الحقيقية والأكشن! الحساب يحتوي على لعبة سباق السيارات الشهيرة Assetto Corsa مع حزم ألعاب ممتازة ومفتوحة بالكامل، جاهزة للربط وبدء التنافس واللعب الجماعي فوراً وبأفضل أداء ممكن.",
+                "img_url": "https://i.imgur.com/8N69F3R.png",
+                "price": "6 USDT"
             }
         }
         save_accounts()
@@ -65,7 +81,7 @@ def save_accounts():
 load_accounts()
 active_tickets = {}
 
-# 🛒 واجهة المتجر الاحترافية الجديدة والمتطورة
+# 🛒 واجهة المتجر الاحترافية المحدثة لعرض الأوصاف الخاصة بكل حساب في الـ Modal
 STORE_FRONT_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -87,7 +103,7 @@ STORE_FRONT_HTML = """
         .card:hover img { transform: scale(1.02); }
         .card-body { padding: 20px; }
         .card-id { background: var(--main-color); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; position: absolute; top: 15px; right: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .card-title { margin: 10px 0 15px 0; font-size: 18px; font-weight: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-title { margin: 10px 0 15px 0; font-size: 18px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-price { color: var(--success-color); font-weight: bold; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 5px; }
         .btn-view { display: block; text-align: center; background: #1c1635; color: var(--main-color); border: 1px solid var(--main-color); padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; transition: 0.2s; }
         .card:hover .btn-view { background: var(--main-color); color: white; }
@@ -114,7 +130,7 @@ STORE_FRONT_HTML = """
     
     <div class="grid">
         {% for acc_id, data in accounts.items() %}
-        <div class="card" onclick="openDetails('{{ acc_id }}', '{{ data.title }}', '{{ data.price }}', '{{ data.img_url }}')">
+        <div class="card" onclick="openDetails('{{ acc_id }}', '{{ data.title }}', '{{ data.price }}', '{{ data.img_url }}', '{{ data.description|default('') }}')">
             <span class="card-id">#{{ acc_id }}</span>
             <img src="{{ data.img_url }}" alt="Account Image">
             <div class="card-body">
@@ -133,18 +149,25 @@ STORE_FRONT_HTML = """
             <div class="modal-body">
                 <h2 id="m_title" style="margin-top:0; color: var(--main-color);"></h2>
                 <h3 id="m_price" style="color: var(--success-color);"></h3>
-                <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">لشراء هذا الحساب فوراً، يرجى الضغط على زر الشراء أدناه للانتقال إلى سيرفر الديسكورد، ثم افتح تذكرة برقم الحساب (#<span id="m_id"></span>) وسيتم خدمتك وتسليمك البيانات مباشرة.</p>
+                
+                <div style="background: #1a1433; padding: 15px; border-radius: 8px; border-right: 3px solid var(--main-color); margin-bottom: 15px;">
+                    <strong style="color: #fff; display: block; margin-bottom: 5px;">📝 وصف ومحتويات الحساب:</strong>
+                    <p id="m_desc" style="color: var(--text-muted); font-size: 14px; margin: 0; line-height: 1.6;"></p>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 13px;">لشراء هذا الحساب فوراً، يرجى الضغط على زر الشراء أدناه للانتقال إلى سيرفر الديسكورد، ثم افتح تذكرة برقم الحساب (#<span id="m_id"></span>) وسيتم تسليمك البيانات مباشرة.</p>
                 <a href="{{ server_link }}" target="_blank" class="btn-buy-now">🪙 الانتقال للسيرفر للشراء والتعامل المباشر</a>
             </div>
         </div>
     </div>
 
     <script>
-        function openDetails(id, title, price, img) {
+        function openDetails(id, title, price, img, desc) {
             document.getElementById('m_id').innerText = id;
             document.getElementById('m_title').innerText = title;
             document.getElementById('m_price').innerText = "السعر الحالي: " + price;
             document.getElementById('m_img').src = img;
+            document.getElementById('m_desc').innerText = desc ? desc : "لا يوجد وصف إضافي متوفر حالياً لهذا الحساب.";
             document.getElementById('detailsModal').style.display = 'flex';
         }
         function closeDetails(e) {
@@ -157,7 +180,7 @@ STORE_FRONT_HTML = """
 </html>
 """
 
-# ⚙️ لوحة التحكم الاحترافية مع دعم رفع الملفات والصور مباشرة
+# ⚙️ لوحة التحكم الكاملة
 DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -175,8 +198,9 @@ DASHBOARD_HTML = """
         .form-row { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
         .form-row .form-group { flex: 1; min-width: 200px; }
         label { font-size: 14px; color: #a2a0b6; margin-bottom: 8px; font-weight: bold; }
-        input[type="text"], input[type="file"] { padding: 12px; background: #09070f; border: 1px solid #231b3e; color: #fff; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        input[type="text"], input[type="file"], textarea { padding: 12px; background: #09070f; border: 1px solid #231b3e; color: #fff; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
         input[type="file"] { background: #1c1635; cursor: pointer; }
+        textarea { resize: vertical; min-height: 80px; }
         .btn-save { background: #43b581; color: white; border: none; padding: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; }
         .btn-add { background: #5865F2; color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 6px; cursor: pointer; }
         .btn-danger { background: #ed4245; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
@@ -198,9 +222,13 @@ DASHBOARD_HTML = """
             <form method="POST" action="/add_account" enctype="multipart/form-data">
                 <div class="form-row">
                     <div class="form-group"><label>رقم الحساب (ID):</label><input type="text" name="acc_id" placeholder="مثال: 45" required></div>
-                    <div class="form-group"><label>وصف الحساب وعنوانه:</label><input type="text" name="acc_title" placeholder="حساب ستيم، ليفيل.." required></div>
+                    <div class="form-group"><label>عنوان الحساب:</label><input type="text" name="acc_title" placeholder="حساب ستيم، ليفيل.." required></div>
                     <div class="form-group"><label>السعر المعروض:</label><input type="text" name="acc_price" placeholder="مثال: 10 USDT" required></div>
                     <div class="form-group"><label>قم برفع صورة الحساب مباشرة:</label><input type="file" name="acc_file" accept="image/*" required></div>
+                </div>
+                <div class="form-group">
+                    <label>وصف ومحتويات الحساب بالتفصيل (سيظهر داخل النافذة المنبثقة):</label>
+                    <textarea name="acc_desc" placeholder="اكتب تفاصيل الألعاب، الليفل، وأهم الميزات هنا..." required></textarea>
                 </div>
                 <button type="submit" class="btn-add">➕ إضافة الحساب فوراً في الكتالوج</button>
             </form>
@@ -208,7 +236,7 @@ DASHBOARD_HTML = """
             <h3 style="margin-top: 30px;">📋 الحسابات المعروضة حالياً في الموقع</h3>
             <table class="acc-table">
                 <thead>
-                    <tr><th>الصورة</th><th>رقم الحساب</th><th>الوصف والعنوان</th><th>السعر</th><th>الإجراءات</th></tr>
+                    <tr><th>الصورة</th><th>رقم الحساب</th><th>العنوان</th><th>السعر</th><th>الإجراءات</th></tr>
                 </thead>
                 <tbody>
                     {% for acc_id, data in accounts.items() %}
@@ -255,7 +283,7 @@ DASHBOARD_HTML = """
 </html>
 """
 
-# قالب تسجيل الدخول
+# بوابة تسجيل الدخول المحمية
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -326,6 +354,7 @@ def add_account():
     DB_ACCOUNTS[aid] = {
         "id": aid, 
         "title": request.form.get('acc_title'), 
+        "description": request.form.get('acc_desc'),
         "price": request.form.get('acc_price'), 
         "img_url": img_url
     }
