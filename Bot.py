@@ -6,12 +6,18 @@ import asyncio
 import json
 from threading import Thread
 from flask import Flask, render_template_string, request, redirect, url_for, session
+from werkzeug.utils import secure_filename
 
-# 🌐 إعداد خادم الويب والموقع المتطور
+# 🌐 إعداد خادم الويب وإعدادات الملفات المرفوعة
 app = Flask('')
 app.secret_key = os.getenv("FLASK_SECRET", "LTB_SUPER_SECRET_KEY_9988")
 
-# 🔒 قاعدة بيانات الإعدادات الشاملة المأخوذة من صورك اللوحة الخاصة بك
+UPLOAD_FOLDER = 'static/uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# 🔒 قاعدة بيانات الإعدادات الشاملة
 BOT_CONFIG = {
     "web_user": "admin",
     "web_pass": "LTB_Owner_2026",
@@ -26,7 +32,9 @@ BOT_CONFIG = {
     "perm_close_ticket": "Mega Owner, Sellers Leader, Staff"
 }
 
-# 💾 نظام الحفظ الذكي والمستمر للحسابات لمنع اختفائها عند ريستارت الـ Render
+DISCORD_SERVER_LINK = "https://discord.gg/quMbWAKgZy"
+
+# 💾 نظام حفظ الحسابات
 ACCOUNTS_FILE = "accounts.json"
 DB_ACCOUNTS = {}
 
@@ -39,20 +47,13 @@ def load_accounts():
         except:
             DB_ACCOUNTS = {}
     
-    # إذا كان الملف فارغاً أو جديداً، يتم زرع حساباتك القديمة فوراً بروابط صورها الشغالة
     if not DB_ACCOUNTS:
         DB_ACCOUNTS = {
             "45": {
                 "id": "45", 
                 "title": "حساب ستيم بريميوم - قراند V", 
-                "img_url": "https://i.imgur.com/8N69F3R.png", # تم وضع رابط الصورة الحقيقية للعبة من شاشتك
+                "img_url": "https://i.imgur.com/8N69F3R.png",
                 "price": "5 USDT"
-            },
-            "10": {
-                "id": "10", 
-                "title": "حساب بوبجي ليفيل 70 مشحون", 
-                "img_url": "https://i.imgur.com/vXY8B9n.png",
-                "price": "12 USDT"
             }
         }
         save_accounts()
@@ -64,7 +65,7 @@ def save_accounts():
 load_accounts()
 active_tickets = {}
 
-# 🛒 تصميم واجهة المتجر العامة للزبائن (HTML المتجر العام)
+# 🛒 واجهة المتجر الاحترافية الجديدة والمتطورة
 STORE_FRONT_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -72,100 +73,117 @@ STORE_FRONT_HTML = """
     <meta charset="UTF-8">
     <title>متجر LTB الإعلاني المباشر 🛒</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0c1b; color: #fff; margin: 0; padding: 40px 20px; }
-        .header { text-align: center; margin-bottom: 50px; }
-        .header h1 { color: #5865F2; margin-bottom: 10px; }
-        .header p { color: #a2a0b6; font-size: 16px; }
+        :root { --main-color: #5865F2; --bg-dark: #09070f; --card-bg: #130f24; --text-muted: #a2a0b6; --success-color: #43b581; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 40px 20px; }
+        .header { text-align: center; max-width: 800px; margin: 0 auto 50px auto; background: var(--card-bg); padding: 30px; border-radius: 16px; border: 1px solid #231b3e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .header h1 { color: var(--main-color); margin-top: 0; font-size: 32px; }
+        .info-box { background: #1a1433; padding: 15px; border-radius: 10px; margin-top: 20px; border-right: 4px solid var(--main-color); text-align: right; }
+        .info-box h3 { margin: 0 0 8px 0; font-size: 16px; color: #fff; }
+        .info-box p { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.6; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; }
-        .card { background: #17122b; border-radius: 12px; border: 1px solid #2c254a; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4); transition: 0.3s; }
-        .card:hover { transform: translateY(-5px); border-color: #5865F2; }
-        .card img { width: 100%; height: 180px; object-fit: cover; background: #0f0c1b; }
+        .card { background: var(--card-bg); border-radius: 14px; border: 1px solid #231b3e; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4); transition: all 0.3s ease; cursor: pointer; position: relative; }
+        .card:hover { transform: translateY(-5px); border-color: var(--main-color); box-shadow: 0 12px 25px rgba(88, 101, 242, 0.2); }
+        .card img { width: 100%; height: 190px; object-fit: cover; background: #0f0c1b; transition: 0.3s; }
+        .card:hover img { transform: scale(1.02); }
         .card-body { padding: 20px; }
-        .card-id { background: #5865F2; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .card-title { margin: 15px 0 10px 0; font-size: 18px; color: #fff; }
-        .card-price { color: #43b581; font-weight: bold; font-size: 16px; margin-bottom: 15px; }
-        .btn-order { display: block; text-align: center; background: #231b3e; color: #5865F2; border: 1px solid #5865F2; padding: 10px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .card-id { background: var(--main-color); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; position: absolute; top: 15px; right: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .card-title { margin: 10px 0 15px 0; font-size: 18px; font-weight: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-price { color: var(--success-color); font-weight: bold; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 5px; }
+        .btn-view { display: block; text-align: center; background: #1c1635; color: var(--main-color); border: 1px solid var(--main-color); padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        .card:hover .btn-view { background: var(--main-color); color: white; }
+        
+        /* النافذة المنبثقة للتفاصيل */
+        .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card-bg); width: 90%; max-width: 600px; border-radius: 16px; border: 1px solid #2c254a; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.7); animation: fadeIn 0.3s ease; position: relative; }
+        @keyframes fadeIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-img { width: 100%; max-height: 300px; object-fit: cover; }
+        .modal-body { padding: 25px; text-align: right; }
+        .modal-close { position: absolute; top: 15px; left: 15px; background: #ed4245; color: white; border: none; width: 30px; height: 30px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-buy-now { display: block; text-align: center; background: var(--success-color); color: white; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; margin-top: 20px; box-shadow: 0 4px 15px rgba(67, 181, 129, 0.3); transition: 0.2s; }
+        .btn-buy-now:hover { background: #3ca374; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🛒 متجر LTB الإعلاني المباشر</h1>
-        <p>تصفح الحسابات المتوفرة لدينا حالياً، وافتح تذكرة في السيرفر لطلب الشراء الفوري برقم الحساب</p>
+        <div class="info-box">
+            <h3>📌 نظام وطريقة التعامل الرسمية:</h3>
+            <p>مرحباً بك في منصتنا! لإتمام عملية الشراء الفوري لأي حساب معروض هنا، يجب عليك **الانضمام إلى سيرفر الديسكورد الرسمي الخاص بنا**. نتعامل حصرياً عبر بوابات **الدفع بالعملات الرقمية المشفرة (Crypto - USDT)** أو عن طريق **نظام المقايضة والتبادل المعتمد** فقط لضمان أمان الطرفين والتسليم الفوري.</p>
+        </div>
     </div>
+    
     <div class="grid">
         {% for acc_id, data in accounts.items() %}
-        <div class="card">
+        <div class="card" onclick="openDetails('{{ acc_id }}', '{{ data.title }}', '{{ data.price }}', '{{ data.img_url }}')">
+            <span class="card-id">#{{ acc_id }}</span>
             <img src="{{ data.img_url }}" alt="Account Image">
             <div class="card-body">
-                <span class="card-id">رقم الحساب: #{{ acc_id }}</span>
                 <div class="card-title">{{ data.title }}</div>
-                <div class="card-price">السعر: {{ data.price }}</div>
-                <div class="btn-order">توجّه للسيرفر للشراء 🪙</div>
+                <div class="card-price">🪙 {{ data.price }}</div>
+                <div class="btn-view">👀 عرض التفاصيل الكاملة</div>
             </div>
         </div>
         {% endfor %}
     </div>
-</body>
-</html>
-"""
 
-# 🔒 صفحة تسجيل الدخول السرية للوحة التحكم
-LOGIN_HTML = """
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8"><title>🔒 بوابة الإدارة السرية</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0c1b; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #17122b; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); width: 100%; max-width: 400px; text-align: center; border: 1px solid #2c254a; }
-        h2 { color: #5865F2; margin-bottom: 25px; }
-        .input-group { margin-bottom: 20px; text-align: right; }
-        label { display: block; margin-bottom: 8px; color: #a2a0b6; font-size: 14px; }
-        input { width: 100%; padding: 12px; background: #0f0c1b; border: 1px solid #2c254a; color: #fff; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #5865F2; border: none; color: white; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
-        .error { color: #ed4245; margin-bottom: 15px; }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <h2>🔒 لوحة الإدارة المحمية</h2>
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        <form method="POST" action="/login">
-            <div class="input-group"><label>اسم المستخدم السري:</label><input type="text" name="username" required></div>
-            <div class="input-group"><label>كلمة المرور:</label><input type="password" name="password" required></div>
-            <button type="submit">تسجيل الدخول الآمن</button>
-        </form>
+    <div id="detailsModal" class="modal-overlay" onclick="closeDetails(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeDetails(null)">X</button>
+            <img id="m_img" src="" class="modal-img" alt="">
+            <div class="modal-body">
+                <h2 id="m_title" style="margin-top:0; color: var(--main-color);"></h2>
+                <h3 id="m_price" style="color: var(--success-color);"></h3>
+                <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">لشراء هذا الحساب فوراً، يرجى الضغط على زر الشراء أدناه للانتقال إلى سيرفر الديسكورد، ثم افتح تذكرة برقم الحساب (#<span id="m_id"></span>) وسيتم خدمتك وتسليمك البيانات مباشرة.</p>
+                <a href="{{ server_link }}" target="_blank" class="btn-buy-now">🪙 الانتقال للسيرفر للشراء والتعامل المباشر</a>
+            </div>
+        </div>
     </div>
+
+    <script>
+        function openDetails(id, title, price, img) {
+            document.getElementById('m_id').innerText = id;
+            document.getElementById('m_title').innerText = title;
+            document.getElementById('m_price').innerText = "السعر الحالي: " + price;
+            document.getElementById('m_img').src = img;
+            document.getElementById('detailsModal').style.display = 'flex';
+        }
+        function closeDetails(e) {
+            if(!e || e.target === document.getElementById('detailsModal') || e === null) {
+                document.getElementById('detailsModal').style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
 """
 
-# ⚙️ لوحة التحكم الكاملة والمستقرة والمصلحة (صفحة واحدة متكاملة تمنع خطأ 500)
+# ⚙️ لوحة التحكم الاحترافية مع دعم رفع الملفات والصور مباشرة
 DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8"><title>LTB Dashboard - لوحة الإدارة الشاملة</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #0f0c1b; color: #f2f1f5; margin: 0; padding: 40px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #09070f; color: #f2f1f5; margin: 0; padding: 40px; }
         .container { max-width: 1100px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #2c254a; padding-bottom: 20px; }
         h2 { color: #5865F2; margin: 0; }
         .logout-btn { background: #ed4245; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; }
-        .card { background: #17122b; border-radius: 8px; padding: 25px; margin-bottom: 35px; border: 1px solid #2c254a; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .card h3 { margin-top: 0; color: #5865F2; border-bottom: 1px solid #2c254a; padding-bottom: 10px; font-size: 18px; }
+        .card { background: #130f24; border-radius: 12px; padding: 25px; margin-bottom: 35px; border: 1px solid #231b3e; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .card h3 { margin-top: 0; color: #5865F2; border-bottom: 1px solid #231b3e; padding-bottom: 10px; font-size: 18px; }
         .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
-        .form-row { display: flex; gap: 20px; margin-bottom: 15px; }
-        .form-row .form-group { flex: 1; }
+        .form-row { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-row .form-group { flex: 1; min-width: 200px; }
         label { font-size: 14px; color: #a2a0b6; margin-bottom: 8px; font-weight: bold; }
-        input[type="text"], input[type="password"] { padding: 12px; background: #0f0c1b; border: 1px solid #2c254a; color: #fff; border-radius: 6px; font-size: 14px; }
-        input:focus { border-color: #5865F2; outline: none; }
+        input[type="text"], input[type="file"] { padding: 12px; background: #09070f; border: 1px solid #231b3e; color: #fff; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        input[type="file"] { background: #1c1635; cursor: pointer; }
         .btn-save { background: #43b581; color: white; border: none; padding: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; }
         .btn-add { background: #5865F2; color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 6px; cursor: pointer; }
         .btn-danger { background: #ed4245; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
         .acc-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .acc-table th, .acc-table td { padding: 14px; text-align: right; border-bottom: 1px solid #2c254a; }
+        .acc-table th, .acc-table td { padding: 14px; text-align: right; border-bottom: 1px solid #231b3e; }
         .acc-table th { color: #5865F2; font-weight: bold; }
+        .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -176,13 +194,13 @@ DASHBOARD_HTML = """
         </div>
 
         <div class="card">
-            <h3>📦 إضافة كارت حساب جديد للمتجر</h3>
-            <form method="POST" action="/add_account">
+            <h3>📦 إضافة كارت حساب جديد للمتجر (رفع صورة مباشر)</h3>
+            <form method="POST" action="/add_account" enctype="multipart/form-data">
                 <div class="form-row">
                     <div class="form-group"><label>رقم الحساب (ID):</label><input type="text" name="acc_id" placeholder="مثال: 45" required></div>
                     <div class="form-group"><label>وصف الحساب وعنوانه:</label><input type="text" name="acc_title" placeholder="حساب ستيم، ليفيل.." required></div>
                     <div class="form-group"><label>السعر المعروض:</label><input type="text" name="acc_price" placeholder="مثال: 10 USDT" required></div>
-                    <div class="form-group"><label>رابط الصورة المباشر:</label><input type="text" name="acc_img" placeholder="https://..." required></div>
+                    <div class="form-group"><label>قم برفع صورة الحساب مباشرة:</label><input type="file" name="acc_file" accept="image/*" required></div>
                 </div>
                 <button type="submit" class="btn-add">➕ إضافة الحساب فوراً في الكتالوج</button>
             </form>
@@ -190,11 +208,12 @@ DASHBOARD_HTML = """
             <h3 style="margin-top: 30px;">📋 الحسابات المعروضة حالياً في الموقع</h3>
             <table class="acc-table">
                 <thead>
-                    <tr><th>رقم الحساب</th><th>الوصف والعنوان</th><th>السعر</th><th>الإجراءات</th></tr>
+                    <tr><th>الصورة</th><th>رقم الحساب</th><th>الوصف والعنوان</th><th>السعر</th><th>الإجراءات</th></tr>
                 </thead>
                 <tbody>
                     {% for acc_id, data in accounts.items() %}
                     <tr>
+                        <td><img src="{{ data.img_url }}" class="thumb"></td>
                         <td><code>#{{ acc_id }}</code></td>
                         <td>{{ data.title }}</td>
                         <td><b style="color:#43b581;">{{ data.price }}</b></td>
@@ -236,9 +255,40 @@ DASHBOARD_HTML = """
 </html>
 """
 
+# قالب تسجيل الدخول
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8"><title>🔒 بوابة الإدارة السرية</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #09070f; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #130f24; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); width: 100%; max-width: 400px; text-align: center; border: 1px solid #231b3e; }
+        h2 { color: #5865F2; margin-bottom: 25px; }
+        .input-group { margin-bottom: 20px; text-align: right; }
+        label { display: block; margin-bottom: 8px; color: #a2a0b6; font-size: 14px; }
+        input { width: 100%; padding: 12px; background: #09070f; border: 1px solid #231b3e; color: #fff; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #5865F2; border: none; color: white; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .error { color: #ed4245; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>🔒 لوحة الإدارة المحمية</h2>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="POST" action="/login">
+            <div class="input-group"><label>اسم المستخدم السري:</label><input type="text" name="username" required></div>
+            <div class="input-group"><label>كلمة المرور:</label><input type="password" name="password" required></div>
+            <button type="submit">تسجيل الدخول الآمن</button>
+        </form>
+    </div>
+</body>
+</html>
+"""
+
 @app.route('/')
 def public_store():
-    return render_template_string(STORE_FRONT_HTML, accounts=DB_ACCOUNTS)
+    return render_template_string(STORE_FRONT_HTML, accounts=DB_ACCOUNTS, server_link=DISCORD_SERVER_LINK)
 
 @app.route('/admin_panel_ltb_7392_x8q')
 def admin_panel():
@@ -264,11 +314,20 @@ def save_settings():
 def add_account():
     if 'logged_in' not in session: return redirect(url_for('public_store'))
     aid = request.form.get('acc_id').strip()
+    
+    file = request.files.get('acc_file')
+    if file and file.filename != '':
+        filename = secure_filename(f"{aid}_{file.filename}")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        img_url = f"/static/uploads/{filename}"
+    else:
+        img_url = "https://i.imgur.com/8N69F3R.png"
+
     DB_ACCOUNTS[aid] = {
         "id": aid, 
         "title": request.form.get('acc_title'), 
         "price": request.form.get('acc_price'), 
-        "img_url": request.form.get('acc_img')
+        "img_url": img_url
     }
     save_accounts()
     return redirect(url_for('admin_panel'))
@@ -289,7 +348,7 @@ def logout():
 def run_http_server(): app.run(host='0.0.0.0', port=8080)
 
 
-# 🤖 برمجة وهيكلة بوت الديسكورد الاحترافي الكامل
+# 🤖 برمجة وهيكلة بوت الديسكورد
 TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
@@ -302,6 +361,25 @@ def has_dashboard_permission(user, config_key):
     for role in user.roles:
         if str(role.id) in allowed_items or role.name.lower() in allowed_items: return True
     return False
+
+# 🌌 حدث الترحيب بنظام الإيمبد الاحترافي الجديد داخل السيرفر
+@bot.event
+async def on_member_join(member):
+    try:
+        welcome_channel = bot.get_channel(int(BOT_CONFIG["welcome_channel_id"]))
+        if welcome_channel:
+            embed = discord.Embed(
+                title="✨ عضو جديد انضم إلى عائلة LTB!",
+                description=f"أهلاً بك ومرحباً {member.mention} في سيرفرنا الرسمي لبيع ومقايضة الحسابات عبر الكريبتو! 🔥\n\n"
+                            f"📌 **لتصفح الحسابات المتوفرة وأسعارها:** استخدم الأمر `!send_shop` أو تفضل بزيارة موقعنا المباشر.\n"
+                            f"📌 **لبدء عملية شراء أو مقايضة:** توجه لغرفة فتح التذاكر وافتح تذكرتك الفورية.",
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"أنت العضو رقم {member.guild.member_count}", icon_url=member.guild.icon.url if member.guild.icon else None)
+            await welcome_channel.send(embed=embed)
+    except Exception as e:
+        print(f"Error in welcome embed: {e}")
 
 class WebsiteRedirectView(View):
     def __init__(self, url):
