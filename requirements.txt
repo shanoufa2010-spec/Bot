@@ -1,4 +1,2 @@
-google-generativeai
-aiohttp
 discord.py
 flask
